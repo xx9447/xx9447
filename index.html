@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mystery Slots - 1024 Ways</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>MYSTERY SLOTS</h1>
+            <div class="stats-bar">
+                <div class="stat-box">BALANCE: <span id="balance">100000</span></div>
+                <div class="stat-box">WIN: <span id="last-win">0</span></div>
+            </div>
+        </header>
+
+        <div id="free-spin-indicator" class="hidden">FREE SPINS: <span id="fs-count">0</span> | MULTIPLIER: x<span id="fs-mult">1</span></div>
+
+        <div class="slot-machine">
+            <div class="reels-container" id="reels-container">
+                </div>
+        </div>
+
+        <div class="controls">
+            <div class="bet-selector">
+                <label>BET:</label>
+                <select id="bet-amount">
+                    <option value="1">1</option>
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            
+            <div class="main-btns">
+                <button id="spin-btn" class="primary-btn">SPIN</button>
+                <button id="auto-btn" class="secondary-btn">AUTO</button>
+                <button id="stop-btn" class="hidden danger-btn">STOP</button>
+            </div>
+
+            <div class="utility-btns">
+                <button onclick="togglePaytable()">PAYTABLE</button>
+                <button onclick="resetGame()">RESET</button>
+            </div>
+        </div>
+
+        <div id="win-log" class="win-log"></div>
+    </div>
+
+    <div id="paytable-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>PAYTABLE (Ways to Win)</h2>
+            <p>Wins pay left-to-right on adjacent reels. Multiplied by symbols per reel.</p>
+            <table id="payout-table"></table>
+            <button onclick="togglePaytable()">CLOSE</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
