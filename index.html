@@ -1,74 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mystery Slots Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تجربة الإدراك</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="game-container">
-        <header>
-            <div class="header-top">
-                <h1>MYSTERY SLOTS</h1>
-                <button id="settings-btn">⚙️</button>
+    <div id="experience-container">
+        <div id="text-display" class="fade-in"></div>
+        <div id="ui-layer" class="hidden">
             </div>
-            <div class="stats-bar">
-                <div class="stat-box">BALANCE: <span id="balance">100000</span></div>
-                <div id="win-banner" class="stat-box win-anim">WIN: <span id="last-win">0</span></div>
-            </div>
-        </header>
-
-        <div id="multiplier-display" class="hidden">MULTIPLIER x<span id="mult-val">1</span></div>
-        <div id="free-spin-indicator" class="hidden">FREE SPINS: <span id="fs-count">0</span></div>
-
-        <div class="slot-machine">
-            <div class="reels-container" id="reels-container">
-                </div>
-        </div>
-
-        <div class="controls">
-            <div class="bet-selector">
-                <label>BET</label>
-                <select id="bet-amount">
-                    <option value="1">1</option>
-                    <option value="5">5</option>
-                    <option value="10" selected>10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
-            </div>
-            
-            <div class="main-btns">
-                <button id="spin-btn" class="primary-btn">SPIN</button>
-                <button id="auto-btn" class="secondary-btn">AUTO</button>
-                <button id="stop-btn" class="hidden danger-btn">STOP</button>
-            </div>
-
-            <div class="utility-btns">
-                <button onclick="togglePaytable()">PAYTABLE</button>
-                <button onclick="resetGame()">RESET</button>
-            </div>
-        </div>
-
-        <div id="win-log" class="win-log"></div>
-
-        <div id="debug-panel" class="hidden">
-            <h3>Debug Info</h3>
-            <div id="debug-content"></div>
-        </div>
     </div>
-
-    <div id="paytable-modal" class="modal hidden">
-        <div class="modal-content">
-            <h2>PAYTABLE</h2>
-            <p>Normal: 4+ Symbols | Free Spins: 3+ Symbols</p>
-            <table id="payout-table"></table>
-            <button onclick="togglePaytable()">CLOSE</button>
-        </div>
-    </div>
-
     <script src="script.js"></script>
 </body>
 </html>
