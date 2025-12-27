@@ -1,239 +1,304 @@
+// 1. Symbol Configuration & Weights
 const SYMBOLS = [
-    { name: 'Dagger', icon: '🗡️', p3: 2, p4: 5, p5: 15 },
-    { name: 'Mask', icon: '🎭', p3: 2, p4: 5, p5: 15 },
-    { name: 'Key', icon: '🔑', p3: 3, p4: 8, p5: 20 },
-    { name: 'Lantern', icon: '🏮', p3: 3, p4: 8, p5: 20 },
-    { name: 'Eye', icon: '👁️', p3: 5, p4: 15, p5: 40 },
-    { name: 'Raven', icon: '🐦', p3: 5, p4: 15, p5: 40 },
-    { name: 'Ring', icon: '💍', p3: 10, p4: 25, p5: 80 },
-    { name: 'Skull', icon: '💀', p3: 15, p4: 50, p5: 150 }
+    { id: 'LT', name: 'Lantern', icon: '🏮', p3: 2, p4: 5, p5: 10, w: 100 },
+    { id: 'KY', name: 'Key',     icon: '🔑', p3: 2, p4: 5, p5: 10, w: 100 },
+    { id: 'EY', name: 'Eye',     icon: '👁️', p3: 3, p4: 6, p5: 15, w: 90 },
+    { id: 'MS', name: 'Mask',    icon: '🎭', p3: 4, p4: 10, p5: 25, w: 70 },
+    { id: 'RV', name: 'Raven',   icon: '🐦', p3: 5, p4: 15, p5: 40, w: 60 },
+    { id: 'RG', name: 'Ring',    icon: '💍', p3: 10, p4: 25, p5: 60, w: 40 },
+    { id: 'DG', name: 'Dagger',  icon: '🗡️', p3: 20, p4: 50, p5: 150, w: 20 },
+    { id: 'SK', name: 'Skull',   icon: '💀', p3: 30, p4: 80, p5: 300, w: 10 }
 ];
 
-const WILD = { name: 'Wild', icon: '🌌' };
-const SCATTER = { name: 'Scatter', icon: '📜' };
+const WILD = { icon: '🌌', w: 8 }; 
+const SCATTER = { icon: '📜', w: 4 };
 
-let balance = 100000;
-let currentBet = 10;
-let isSpinning = false;
-let autoSpin = false;
-let freeSpinsLeft = 0;
-let stickyWilds = []; // Stores {reel, row}
-let currentMultiplier = 1;
+let state = {
+    balance: 100000,
+    bet: 10,
+    isSpinning: false,
+    auto: false,
+    freeSpins: 0,
+    multiplier: 1,
+    stickyWilds: [],
+    debug: false
+};
 
-const reelsContainer = document.getElementById('reels-container');
-const winLog = document.getElementById('win-log');
+const UI = {
+    reels: [],
+    balance: document.getElementById('balance'),
+    win: document.getElementById('last-win'),
+    log: document.getElementById('win-log'),
+    btnSpin: document.getElementById('spin-btn')
+};
 
-// Initialize Reels
+// Initialize
 function init() {
+    const container = document.getElementById('reels-container');
     for (let i = 0; i < 5; i++) {
-        const reelDiv = document.createElement('div');
-        reelDiv.className = 'reel';
-        reelDiv.id = `reel-${i}`;
+        const reel = document.createElement('div');
+        reel.className = 'reel';
+        reel.id = `reel-${i}`;
         for (let j = 0; j < 4; j++) {
-            const symbolDiv = document.createElement('div');
-            symbolDiv.className = 'symbol';
-            symbolDiv.innerHTML = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)].icon;
-            reelDiv.appendChild(symbolDiv);
+            const sym = document.createElement('div');
+            sym.className = 'symbol';
+            sym.innerHTML = SYMBOLS[0].icon;
+            reel.appendChild(sym);
         }
-        reelsContainer.appendChild(reelDiv);
+        container.appendChild(reel);
+        UI.reels.push(reel);
     }
     updateUI();
     buildPaytable();
 }
 
-function updateUI() {
-    document.getElementById('balance').innerText = Math.floor(balance);
-    const spinBtn = document.getElementById('spin-btn');
-    if (balance < currentBet && freeSpinsLeft === 0) {
-        spinBtn.disabled = true;
-        spinBtn.innerText = "NO COINS";
-    } else {
-        spinBtn.disabled = isSpinning;
-        spinBtn.innerText = freeSpinsLeft > 0 ? "FREE SPIN" : "SPIN";
-    }
-    
-    const fsIndicator = document.getElementById('free-spin-indicator');
-    if (freeSpinsLeft > 0) {
-        fsIndicator.classList.remove('hidden');
-        document.getElementById('fs-count').innerText = freeSpinsLeft;
-        document.getElementById('fs-mult').innerText = currentMultiplier;
-    } else {
-        fsIndicator.classList.add('hidden');
-    }
+// RNG with Weights
+function getRandomSymbol() {
+    const pool = [];
+    SYMBOLS.forEach(s => { for(let i=0; i<s.w; i++) pool.push(s.icon); });
+    for(let i=0; i<WILD.w; i++) pool.push(WILD.icon);
+    for(let i=0; i<SCATTER.w; i++) pool.push(SCATTER.icon);
+    return pool[Math.floor(Math.random() * pool.length)];
 }
 
 async function spin() {
-    if (isSpinning) return;
-    if (balance < currentBet && freeSpinsLeft === 0) return;
+    if (state.isSpinning) return;
+    if (state.balance < state.bet && state.freeSpins === 0) {
+        state.auto = false;
+        return;
+    }
 
-    isSpinning = true;
-    winLog.innerHTML = "Spinning...";
-    
-    if (freeSpinsLeft === 0) {
-        balance -= currentBet;
-        stickyWilds = []; // Clear sticky wilds if not in FS
+    state.isSpinning = true;
+    if (state.freeSpins === 0) {
+        state.balance -= state.bet;
+        state.stickyWilds = [];
     } else {
-        freeSpinsLeft--;
+        state.freeSpins--;
     }
-
+    
     updateUI();
+    UI.log.innerHTML = "Spinning...";
+    clearHighlights();
 
-    // Randomize Multiplier
-    currentMultiplier = getRandomMultiplier(freeSpinsLeft > 0);
-
-    // Simulate Spin Delay
-    await new Promise(r => setTimeout(r, 600));
-
-    const grid = generateGrid();
-    renderGrid(grid);
-    const results = calculateWins(grid);
-    
-    balance += results.totalWin;
-    document.getElementById('last-win').innerText = results.totalWin;
-    
-    if (results.scatters >= 3) {
-        freeSpinsLeft += 12;
-        winLog.innerHTML = `<b style="color:gold">EXTRACTED 12 FREE SPINS!</b><br>` + winLog.innerHTML;
-    }
-
-    winLog.innerHTML = results.log + (results.totalWin > 0 ? ` <br>Total: ${results.totalWin}` : "");
-    
-    isSpinning = false;
-    updateUI();
-
-    if (autoSpin && !isSpinning) {
-        setTimeout(spin, 800);
-    }
-}
-
-function generateGrid() {
-    let grid = [];
-    for (let c = 0; c < 5; c++) {
-        let reel = [];
-        for (let r = 0; r < 4; r++) {
-            // Check for sticky wild
-            const isSticky = stickyWilds.some(sw => sw.c === c && sw.r === r);
-            if (isSticky) {
-                reel.push(WILD.icon);
-                continue;
-            }
-
-            let rnd = Math.random();
-            if (rnd < 0.05) reel.push(SCATTER.icon);
-            else if (rnd < 0.12) {
-                reel.push(WILD.icon);
-                if (freeSpinsLeft > 0) stickyWilds.push({c, r}); // Save sticky
-            }
-            else {
-                let symbol = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
-                reel.push(symbol.icon);
+    // Generate Results
+    const grid = [];
+    let scatters = 0;
+    for(let c=0; c<5; c++) {
+        const col = [];
+        for(let r=0; r<4; r++) {
+            const sticky = state.stickyWilds.find(sw => sw.c === c && sw.r === r);
+            if (sticky) {
+                col.push(WILD.icon);
+            } else {
+                const s = getRandomSymbol();
+                if (s === SCATTER.icon) scatters++;
+                if (s === WILD.icon && state.freeSpins > 0) state.stickyWilds.push({c, r});
+                col.push(s);
             }
         }
-        grid.push(reel);
+        grid.push(col);
     }
-    return grid;
+
+    // Roll Multiplier
+    state.multiplier = rollMultiplier(state.freeSpins > 0);
+
+    // Animation: Sequential stop
+    for (let i = 0; i < 5; i++) {
+        UI.reels[i].classList.add('spinning');
+        await new Promise(r => setTimeout(r, 120));
+    }
+
+    await new Promise(r => setTimeout(r, 400));
+
+    for (let i = 0; i < 5; i++) {
+        renderReel(i, grid[i]);
+        UI.reels[i].classList.remove('spinning');
+        await new Promise(r => setTimeout(r, 150));
+    }
+
+    // Process Wins
+    const result = calculateResult(grid);
+    handleWin(result, scatters);
+
+    if (state.debug) updateDebug(scatters, result);
+
+    state.isSpinning = false;
+    updateUI();
+
+    if (state.auto) setTimeout(spin, 900);
 }
 
-function renderGrid(grid) {
-    for (let c = 0; c < 5; c++) {
-        const reelDiv = document.getElementById(`reel-${c}`);
-        reelDiv.innerHTML = '';
-        for (let r = 0; r < 4; r++) {
-            const sym = grid[c][r];
-            const div = document.createElement('div');
-            div.className = 'symbol';
-            if (sym === WILD.icon) div.classList.add('wild');
-            if (sym === SCATTER.icon) div.classList.add('scatter');
-            if (stickyWilds.some(sw => sw.c === c && sw.r === r)) div.classList.add('sticky');
-            div.innerHTML = sym;
-            reelDiv.appendChild(div);
-        }
-    }
-}
-
-function calculateWins(grid) {
+function calculateResult(grid) {
     let totalWin = 0;
+    let winningCells = [];
     let log = "";
-    let scatterCount = 0;
+    const minMatch = state.freeSpins > 0 ? 3 : 4;
 
-    // Check each regular symbol
     SYMBOLS.forEach(sym => {
         let matchCount = 0;
-        let waysPerReel = [];
+        let ways = 1;
+        let currentWinningCells = [];
 
         for (let c = 0; c < 5; c++) {
             let matchesOnReel = 0;
+            let tempCells = [];
             for (let r = 0; r < 4; r++) {
                 if (grid[c][r] === sym.icon || grid[c][r] === WILD.icon) {
                     matchesOnReel++;
+                    tempCells.push({c, r});
                 }
             }
             if (matchesOnReel > 0) {
                 matchCount++;
-                waysPerReel.push(matchesOnReel);
-            } else {
-                break;
-            }
+                ways *= matchesOnReel;
+                currentWinningCells.push(...tempCells);
+            } else break;
         }
 
-        if (matchCount >= 3) {
-            let ways = waysPerReel.reduce((a, b) => a * b, 1);
-            let basePayout = sym[`p${matchCount}`];
-            let winAmount = basePayout * ways * (currentBet / 10) * currentMultiplier;
-            totalWin += winAmount;
-            log += `${sym.icon} x${matchCount} (${ways} ways): ${winAmount.toFixed(0)} | `;
+        if (matchCount >= minMatch) {
+            const payout = sym[`p${matchCount}`] * ways * (state.bet / 10) * state.multiplier;
+            totalWin += payout;
+            winningCells.push(...currentWinningCells);
+            log += `${sym.icon} x${matchCount} (${ways} ways) `;
         }
     });
 
-    // Count Scatters
-    grid.forEach(col => col.forEach(cell => { if(cell === SCATTER.icon) scatterCount++; }));
+    // Max Win Cap (500x Bet)
+    const maxWin = state.bet * 500;
+    if (totalWin > maxWin) totalWin = maxWin;
 
-    return { totalWin, log, scatters: scatterCount };
+    return { totalWin, winningCells, log };
 }
 
-function getRandomMultiplier(isFreeSpin) {
-    let rnd = Math.random();
-    if (isFreeSpin) {
-        if (rnd < 0.02) return 100;
-        if (rnd < 0.05) return 50;
-        if (rnd < 0.4) return 3;
-        return 2;
+async function handleWin(res, scatters) {
+    if (res.totalWin > 0) {
+        highlightWins(res.winningCells);
+        if (state.multiplier > 1) {
+            document.getElementById('multiplier-display').classList.remove('hidden');
+            document.getElementById('mult-val').innerText = state.multiplier;
+        }
+        await countUpBalance(res.totalWin);
+        UI.log.innerHTML = res.log;
     } else {
-        if (rnd < 0.005) return 100;
-        if (rnd < 0.01) return 50;
-        if (rnd < 0.05) return 3;
-        if (rnd < 0.1) return 2;
-        return 1;
+        document.getElementById('multiplier-display').classList.add('hidden');
+        UI.log.innerHTML = "No Win";
+    }
+
+    if (scatters === 3) state.freeSpins += 10;
+    else if (scatters === 4) state.freeSpins += 15;
+}
+
+function rollMultiplier(isFS) {
+    const r = Math.random() * 100;
+    if (isFS) {
+        if (r < 0.08) return 100;
+        if (r < 0.3) return 50;
+        if (r < 3) return 3;
+        if (r < 8) return 2;
+    } else {
+        if (r < 0.01) return 100;
+        if (r < 0.03) return 50;
+        if (r < 0.2) return 3;
+        if (r < 0.8) return 2;
+    }
+    return 1;
+}
+
+// Helpers
+async function countUpBalance(amount) {
+    const start = state.balance;
+    const end = state.balance + amount;
+    const duration = 800;
+    const step = amount / (duration / 20);
+    
+    return new Promise(resolve => {
+        let current = start;
+        const timer = setInterval(() => {
+            current += step;
+            if (current >= end) {
+                state.balance = end;
+                UI.balance.innerText = Math.floor(state.balance);
+                UI.win.innerText = Math.floor(amount);
+                clearInterval(timer);
+                resolve();
+            } else {
+                UI.balance.innerText = Math.floor(current);
+            }
+        }, 20);
+    });
+}
+
+function renderReel(c, symbols) {
+    const reel = UI.reels[c];
+    reel.innerHTML = '';
+    symbols.forEach((s, r) => {
+        const div = document.createElement('div');
+        div.className = 'symbol';
+        if (s === WILD.icon) div.style.color = 'var(--gold)';
+        if (state.stickyWilds.some(sw => sw.c === c && sw.r === r)) div.style.border = '1px solid var(--gold)';
+        div.innerHTML = s;
+        reel.appendChild(div);
+    });
+}
+
+function highlightWins(cells) {
+    cells.forEach(cell => {
+        const el = UI.reels[cell.c].children[cell.r];
+        el.classList.add('win-highlight');
+    });
+}
+
+function clearHighlights() {
+    document.querySelectorAll('.symbol').forEach(s => s.classList.remove('win-highlight'));
+}
+
+function updateUI() {
+    UI.balance.innerText = Math.floor(state.balance);
+    UI.btnSpin.disabled = state.isSpinning;
+    const fsInd = document.getElementById('free-spin-indicator');
+    if (state.freeSpins > 0) {
+        fsInd.classList.remove('hidden');
+        document.getElementById('fs-count').innerText = state.freeSpins;
+    } else {
+        fsInd.classList.add('hidden');
     }
 }
 
-// UI Handlers
-document.getElementById('spin-btn').addEventListener('click', () => { autoSpin = false; spin(); });
+// Listeners
+UI.btnSpin.addEventListener('click', () => { state.auto = false; spin(); });
 document.getElementById('auto-btn').addEventListener('click', () => { 
-    autoSpin = true; 
+    state.auto = true; 
     document.getElementById('auto-btn').classList.add('hidden');
     document.getElementById('stop-btn').classList.remove('hidden');
     spin(); 
 });
 document.getElementById('stop-btn').addEventListener('click', () => { 
-    autoSpin = false; 
+    state.auto = false;
     document.getElementById('auto-btn').classList.remove('hidden');
     document.getElementById('stop-btn').classList.add('hidden');
 });
-document.getElementById('bet-amount').addEventListener('change', (e) => {
-    currentBet = parseInt(e.target.value);
-    updateUI();
+document.getElementById('settings-btn').addEventListener('click', () => {
+    state.debug = !state.debug;
+    document.getElementById('debug-panel').classList.toggle('hidden');
 });
+document.getElementById('bet-amount').addEventListener('change', (e) => state.bet = parseInt(e.target.value));
 
 function togglePaytable() { document.getElementById('paytable-modal').classList.toggle('hidden'); }
-function resetGame() { balance = 100000; updateUI(); winLog.innerHTML = "Balance Reset."; }
+function resetGame() { state.balance = 100000; state.freeSpins = 0; updateUI(); }
 
 function buildPaytable() {
     const table = document.getElementById('payout-table');
-    table.innerHTML = `<tr><th>Sym</th><th>x3</th><th>x4</th><th>x5</th></tr>`;
+    table.innerHTML = `<tr><th>Sym</th><th>x4</th><th>x5</th></tr>`;
     SYMBOLS.forEach(s => {
-        table.innerHTML += `<tr><td>${s.icon}</td><td>${s.p3}</td><td>${s.p4}</td><td>${s.p5}</td></tr>`;
+        table.innerHTML += `<tr><td>${s.icon}</td><td>${s.p4}</td><td>${s.p5}</td></tr>`;
     });
+}
+
+function updateDebug(sc, res) {
+    document.getElementById('debug-content').innerHTML = `
+        Scatters: ${sc} | Mult Roll: x${state.multiplier} <br>
+        Raw Win: ${res.totalWin.toFixed(0)} | Ways Log: ${res.log}
+    `;
 }
 
 init();
